@@ -131,30 +131,186 @@
             title.innerText = "Meus Álbuns";
             dados.forEach(a => {
                 let d = document.createElement("div"); d.className = "folder";
-                d.innerHTML = `<span class="folder-icon">📁</span><b>${a.nome}</b>`;
-                d.onclick = () => { albumAtivo = a.nome; render(); };
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Galeria Pro</title>
+    <style>
+        :root { --ios-blue: #007aff; --ios-bg: #f2f2f7; --danger: #ff3b30; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--ios-bg); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* BLOQUEIO E MODAIS */
+        #lock, #viewer, #modal-pasta { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100000; }
+        #lock { background: #000; color: #fff; }
+        #viewer { background: rgba(0,0,0,0.95); display: none; z-index: 110000; }
+        #viewer img { max-width: 100%; max-height: 80%; object-fit: contain; }
+        
+        #error-msg { color: var(--danger); font-size: 15px; font-weight: bold; margin-bottom: 10px; height: 20px; }
+        #lock input { padding: 18px; border-radius: 16px; background: #1c1c1e; color: #fff; border: 1px solid #333; font-size: 28px; text-align: center; width: 250px; margin-bottom: 25px; letter-spacing: 8px; }
+        .btn-entrar, .btn-m { background: var(--ios-blue); color: #fff; border: none; padding: 16px 50px; border-radius: 40px; font-weight: 800; cursor: pointer; }
+
+        /* MODAL PASTA */
+        #modal-pasta { background: rgba(0,0,0,0.7); display: none; z-index: 95000; }
+        .modal-box { background: #fff; padding: 25px; border-radius: 20px; width: 85%; max-width: 300px; text-align: center; }
+        .modal-box input { width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 12px; margin: 15px 0; }
+
+        /* MENU E HEADER */
+        #sidebar { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: #fff; z-index: 90000; transition: 0.3s; display: flex; flex-direction: column; }
+        #sidebar.open { left: 0; }
+        #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 85000; }
+        .menu-header { padding: 60px 20px 30px; text-align: center; border-bottom: 1px solid #eee; }
+        .menu-photo { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid var(--ios-blue); }
+        .menu-item { padding: 18px 25px; display: flex; align-items: center; gap: 15px; color: #333; text-decoration: none; font-weight: 600; border-bottom: 1px solid #f9f9f9; }
+
+        header { padding: 55px 20px 15px; background: #fff; display: flex; align-items: center; border-bottom: 1px solid #ddd; }
+        .nav-icon { font-size: 28px; color: var(--ios-blue); background: none; border: none; width: 45px; text-align: left; }
+        #title { font-size: 19px; font-weight: 800; flex: 1; text-align: center; margin-right: 45px; }
+
+        /* GRID E CARDS */
+        #grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 15px; overflow-y: auto; flex: 1; }
+        .folder, .photo-card-wrap { position: relative; background: #fff; border-radius: 15px; padding: 15px; text-align: center; border: 1px solid #eee; }
+        .photo-card-wrap { padding: 0; overflow: hidden; aspect-ratio: 1; }
+        .photo-card-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* SELEÇÃO */
+        .selected { border: 3px solid var(--ios-blue) !important; opacity: 0.7; }
+        .del-btn { position: fixed; bottom: 110px; right: 25px; background: var(--danger); color: #fff; width: 55px; height: 55px; border-radius: 50%; border: none; font-size: 20px; display: none; z-index: 80000; }
+        #add-btn { position: fixed; bottom: 35px; right: 25px; width: 68px; height: 68px; background: var(--ios-blue); color: #fff; border-radius: 50%; border: none; font-size: 38px; z-index: 80000; }
+    </style>
+</head>
+<body>
+
+<div id="overlay" onclick="toggleMenu()"></div>
+<div id="viewer" onclick="this.style.display='none'">
+    <button style="position:absolute; top:50px; right:20px; color:#fff; background:none; border:none; font-size:30px;">✕</button>
+    <img id="view-img">
+</div>
+
+<div id="modal-pasta">
+    <div class="modal-box">
+        <h3>Nova Pasta</h3>
+        <input type="text" id="nome-pasta-input" placeholder="Nome">
+        <div style="display:flex; gap:10px;">
+            <button class="btn-m" style="background:#ccc" onclick="fecharModal()">Sair</button>
+            <button class="btn-m" onclick="confirmarCriarPasta()">Criar</button>
+        </div>
+    </div>
+</div>
+
+<nav id="sidebar">
+    <div class="menu-header">
+        <img src="1000682496.jpg" class="menu-photo" onerror="this.src='https://via.placeholder.com/95?text=AJ'">
+        <div style="margin-top:10px; font-weight:800;">Alberto José</div>
+    </div>
+    <div class="menu-item" onclick="voltar(); toggleMenu()">🖼️ Meus Álbuns</div>
+    <div class="menu-item" onclick="abrirEspecial('Lixeira'); toggleMenu()">🗑️ Lixeira</div>
+    <div style="margin-top:auto;">
+        <a href="https://instagram.com/alberto_jose22a" class="menu-item">📸 Instagram</a>
+        <a href="https://www.facebook.com/profile.php?id=100046460659895" class="menu-item">👤 Facebook</a>
+    </div>
+</nav>
+
+<div id="lock">
+    <div style="font-size:50px">🔒</div>
+    <div id="error-msg"></div>
+    <input id="pass-input" type="password" placeholder="••••" inputmode="numeric">
+    <button class="btn-entrar" onclick="verificar()">ENTRAR</button>
+</div>
+
+<header>
+    <button id="menu-icon" class="nav-icon" onclick="toggleMenu()">☰</button>
+    <button id="back-icon" class="nav-icon" style="display:none;" onclick="voltar()">❮</button>
+    <span id="title">Meus Álbuns</span>
+</header>
+
+<div id="grid"></div>
+
+<button id="del-btn" class="del-btn" onclick="eliminarSelecionados()">🗑️</button>
+<button id="add-btn" onclick="botaoAcao()">+</button>
+
+<script>
+    let albumAtivo = null;
+    let selecionados = [];
+    let touchTimer;
+
+    function toggleMenu() {
+        const s = document.getElementById("sidebar");
+        const o = document.getElementById("overlay");
+        s.classList.toggle("open");
+        o.style.display = s.classList.contains("open") ? "block" : "none";
+    }
+
+    function verificar() {
+        const input = document.getElementById("pass-input");
+        if(input.value === "1234") { document.getElementById("lock").style.display = "none"; render(); }
+        else { document.getElementById("error-msg").innerText = "Código incorreto"; input.value = ""; setTimeout(()=> document.getElementById("error-msg").innerText="", 2000); }
+    }
+
+    function render() {
+        const grid = document.getElementById("grid");
+        const backIcon = document.getElementById("back-icon");
+        const menuIcon = document.getElementById("menu-icon");
+        const delBtn = document.getElementById("del-btn");
+        grid.innerHTML = ""; selecionados = []; delBtn.style.display = "none";
+        
+        let dados = JSON.parse(localStorage.getItem("albuns_db") || "[]");
+
+        if (albumAtivo) {
+            menuIcon.style.display = "none"; backIcon.style.display = "block";
+            document.getElementById("title").innerText = albumAtivo;
+            let p = dados.find(x => x.nome === albumAtivo);
+            if(p) p.fotos.forEach((f, index) => {
+                let div = document.createElement("div"); div.className = "photo-card-wrap";
+                div.innerHTML = `<img src="${f}">`;
+                div.onclick = () => { if(selecionados.length > 0) toggleSelect(index, div); else abrirFoto(f); };
+                div.onmousedown = () => touchTimer = setTimeout(() => toggleSelect(index, div), 500);
+                div.onmouseup = () => clearTimeout(touchTimer);
+                grid.appendChild(div);
+            });
+        } else {
+            menuIcon.style.display = "block"; backIcon.style.display = "none";
+            document.getElementById("title").innerText = "Meus Álbuns";
+            dados.forEach((a, index) => {
+                let d = document.createElement("div"); d.className = "folder";
+                d.innerHTML = `<span style="font-size:40px;display:block">📁</span><b>${a.nome}</b>`;
+                d.onclick = () => { if(selecionados.length > 0) toggleSelect(index, d); else { albumAtivo = a.nome; render(); } };
+                d.onmousedown = () => touchTimer = setTimeout(() => toggleSelect(index, d), 500);
+                d.onmouseup = () => clearTimeout(touchTimer);
                 grid.appendChild(d);
             });
         }
     }
 
-    function abrirEspecial(n) {
-        let l = JSON.parse(localStorage.getItem("albuns_db") || "[]");
-        if(!l.find(x => x.nome === n)) { l.push({nome: n, fotos: []}); localStorage.setItem("albuns_db", JSON.stringify(l)); }
-        albumAtivo = n; render();
+    function toggleSelect(id, el) {
+        if(selecionados.includes(id)) {
+            selecionados = selecionados.filter(i => i !== id);
+            el.classList.remove("selected");
+        } else {
+            selecionados.push(id);
+            el.classList.add("selected");
+        }
+        document.getElementById("del-btn").style.display = selecionados.length > 0 ? "block" : "none";
     }
 
-    function voltar() { albumAtivo = null; render(); }
-    function fecharModal() { document.getElementById("modal-pasta").style.display = "none"; document.getElementById("nome-pasta-input").value = ""; }
+    function abrirFoto(src) {
+        document.getElementById("view-img").src = src;
+        document.getElementById("viewer").style.display = "flex";
+    }
 
-    function confirmarCriarPasta() {
-        let n = document.getElementById("nome-pasta-input").value.trim();
-        if(n) {
-            let l = JSON.parse(localStorage.getItem("albuns_db") || "[]");
-            l.push({nome: n, fotos: []});
-            localStorage.setItem("albuns_db", JSON.stringify(l));
-            fecharModal(); render();
+    function eliminarSelecionados() {
+        let dados = JSON.parse(localStorage.getItem("albuns_db") || "[]");
+        if(albumAtivo) {
+            let p = dados.find(x => x.nome === albumAtivo);
+            p.fotos = p.fotos.filter((_, i) => !selecionados.includes(i));
+        } else {
+            dados = dados.filter((_, i) => !selecionados.includes(i));
         }
+        localStorage.setItem("albuns_db", JSON.stringify(dados));
+        render();
     }
 
     function botaoAcao() {
@@ -169,10 +325,21 @@
                     r.readAsDataURL(f);
                 });
             }; i.click();
-        } else {
-            document.getElementById("modal-pasta").style.display = "flex";
+        } else { document.getElementById("modal-pasta").style.display = "flex"; }
+    }
+
+    function fecharModal() { document.getElementById("modal-pasta").style.display = "none"; }
+    function confirmarCriarPasta() {
+        let n = document.getElementById("nome-pasta-input").value;
+        if(n) {
+            let l = JSON.parse(localStorage.getItem("albuns_db") || "[]");
+            l.push({nome: n, fotos: []});
+            localStorage.setItem("albuns_db", JSON.stringify(l));
+            fecharModal(); render();
         }
     }
+    function voltar() { albumAtivo = null; render(); }
+    function abrirEspecial(n) { albumAtivo = n; render(); }
 </script>
 </body>
 </html>
